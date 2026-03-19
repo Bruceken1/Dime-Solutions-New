@@ -1,20 +1,22 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const { Resend } = require('resend');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Resend } from 'resend';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-// In production only allow your own domain; in dev allow localhost
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://dime-solutions.co.ke', 'https://www.dime-solutions.co.ke']
   : ['http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:8080'];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, Postman, Railway health-checks)
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error('CORS: origin not allowed'));
   },
@@ -26,12 +28,11 @@ app.use(express.json({ limit: '16kb' }));
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // ── Rate limiter ───────────────────────────────────────────────────────────────
-// Max 5 form submissions per IP per 10 minutes
 const rateMap = new Map();
 function rateLimit(req, res, next) {
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   const now = Date.now();
-  const WINDOW = 10 * 60 * 1000; // 10 min
+  const WINDOW = 10 * 60 * 1000;
   const MAX = 5;
   const entry = rateMap.get(ip) || { count: 0, resetAt: now + WINDOW };
   if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + WINDOW; }
@@ -69,10 +70,10 @@ app.post('/api/send-contact', rateLimit, async (req, res) => {
 
   try {
     await resend.emails.send({
-      from:     FROM,
-      to:       [TO],
-      replyTo:  email,
-      subject:  `New Contact: ${esc(subject)}`,
+      from:    FROM,
+      to:      [TO],
+      replyTo: email,
+      subject: `New Contact: ${esc(subject)}`,
       html: `
         <h2 style="color:#1a1a2e">New Contact Form Submission</h2>
         <table cellpadding="6" style="font-family:sans-serif;font-size:14px">
@@ -101,10 +102,10 @@ app.post('/api/send-audit', rateLimit, async (req, res) => {
 
   try {
     await resend.emails.send({
-      from:     FROM,
-      to:       [TO],
-      replyTo:  email,
-      subject:  `New Free Audit Request — ${esc(companyName || contactName)}`,
+      from:    FROM,
+      to:      [TO],
+      replyTo: email,
+      subject: `New Free Audit Request — ${esc(companyName || contactName)}`,
       html: `
         <h2 style="color:#1a1a2e">New Free Audit Request</h2>
         <table cellpadding="6" style="font-family:sans-serif;font-size:14px">
