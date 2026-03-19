@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin/  # Block any private paths if they exist
+Sitemap: https://dime-solutions.co.ke/sitemap.xml
+Content-Signal: search=yes,ai-train=no
+User-agent: Amazonbot
+Disallow: /
+User-agent: GPTBot
+Disallow: /
+# Add more bot-specific disallows as needed
