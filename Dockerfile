@@ -6,7 +6,7 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN npx vite build
+RUN npx vite build && ls -la dist/ && ls -la dist/assets/
 
 EXPOSE 3000
 
