@@ -1,0 +1,8 @@
+{
+  "name": "Dime Solutions",
+  "short_name": "Dime",
+  "icons": [],
+  "theme_color": "#007bff",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}
