@@ -10,9 +10,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ── CORS ──────────────────────────────────────────────────────────────────────
+// ── Static files FIRST — must be before CORS so assets are never blocked ──────
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// ── CORS — only affects API routes below ──────────────────────────────────────
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? ['https://dime-solutions.co.ke', 'https://www.dime-solutions.co.ke']
+  ? ['https://dime-solutions.co.ke', 'https://www.dime-solutions.co.ke', 'https://dime-solutions-new-production.up.railway.app']
   : ['http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:8080'];
 
 app.use(cors({
@@ -25,7 +28,6 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '16kb' }));
-app.use(express.static(path.join(__dirname, 'dist')));
 
 // ── Rate limiter ───────────────────────────────────────────────────────────────
 const rateMap = new Map();
