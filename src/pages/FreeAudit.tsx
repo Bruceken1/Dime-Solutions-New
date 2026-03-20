@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import SectionHeading from "@/components/SectionHeading";
 import { CheckCircle } from "lucide-react";
 
@@ -31,42 +30,18 @@ export default function FreeAudit() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      // 1. Save to Supabase
-      const { error: dbError } = await supabase.from("audit_requests").insert({
-        company_name: formData.companyName  || null,
-        contact_name: formData.contactName,
-        email:        formData.email,
-        phone:        formData.phone        || null,
-        industry:     formData.industry     || null,
-        audit_notes:  formData.auditNotes   || null,
-      });
-      if (dbError) throw dbError;
-
-      // 2. Send email notification via Express
-      const response = await fetch("/api/send-audit", {
-        method:  "POST",
+      const res = await fetch("/api/send-audit", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(formData),
+        body: JSON.stringify(formData),
       });
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        console.error("Email notification failed:", result.error);
-      }
-
-      toast({
-        title: "Request received!",
-        description: "We'll review your details and reach out within 24 hours.",
-      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || "Failed to submit request");
+      toast({ title: "Request received!", description: "We'll review your details and reach out within 24 hours." });
       setFormData({ companyName: "", contactName: "", email: "", phone: "", industry: "", auditNotes: "" });
     } catch (err: any) {
-      console.error("Audit form error:", err);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err.message || "Failed to submit. Please try again.",
-      });
+      toast({ variant: "destructive", title: "Error", description: err.message || "Failed to submit. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -78,12 +53,8 @@ export default function FreeAudit() {
         <div className="container-wide">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl">
             <span className="text-cyan text-sm font-semibold tracking-widest uppercase mb-4 block">Free Audit</span>
-            <h1 className="font-heading text-4xl md:text-5xl font-bold text-on-dark mb-6">
-              Get Your Free Digital Audit
-            </h1>
-            <p className="text-on-dark-muted text-lg">
-              Let our experts analyse your digital presence and deliver a personalised roadmap — at no cost.
-            </p>
+            <h1 className="font-heading text-4xl md:text-5xl font-bold text-on-dark mb-6">Get Your Free Digital Audit</h1>
+            <p className="text-on-dark-muted text-lg">Let our experts analyse your digital presence and deliver a personalised roadmap — at no cost.</p>
           </motion.div>
         </div>
       </section>
@@ -91,7 +62,6 @@ export default function FreeAudit() {
       <section className="section-dark section-padding">
         <div className="container-wide max-w-5xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Benefits */}
             <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
               <SectionHeading label="What You Get" title="Your Free Audit Includes" light />
               <ul className="mt-6 space-y-4">
@@ -107,61 +77,15 @@ export default function FreeAudit() {
               </p>
             </motion.div>
 
-            {/* Form */}
             <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <Input
-                  placeholder="Company Name"
-                  name="companyName"
-                  value={formData.companyName}
-                  onChange={handleChange}
-                  className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted"
-                />
-                <Input
-                  placeholder="Your Name *"
-                  name="contactName"
-                  value={formData.contactName}
-                  onChange={handleChange}
-                  required
-                  className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted"
-                />
-                <Input
-                  type="email"
-                  placeholder="Email Address *"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted"
-                />
-                <Input
-                  type="tel"
-                  placeholder="Phone (optional)"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted"
-                />
-                <Input
-                  placeholder="Industry (optional)"
-                  name="industry"
-                  value={formData.industry}
-                  onChange={handleChange}
-                  className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted"
-                />
-                <Textarea
-                  placeholder="Anything specific you'd like us to look at?"
-                  name="auditNotes"
-                  rows={4}
-                  value={formData.auditNotes}
-                  onChange={handleChange}
-                  className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted"
-                />
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full gradient-cyan text-accent-foreground font-semibold glow-cyan"
-                >
+                <Input placeholder="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted" />
+                <Input placeholder="Your Name *" name="contactName" value={formData.contactName} onChange={handleChange} required className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted" />
+                <Input type="email" placeholder="Email Address *" name="email" value={formData.email} onChange={handleChange} required className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted" />
+                <Input type="tel" placeholder="Phone (optional)" name="phone" value={formData.phone} onChange={handleChange} className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted" />
+                <Input placeholder="Industry (optional)" name="industry" value={formData.industry} onChange={handleChange} className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted" />
+                <Textarea placeholder="Anything specific you'd like us to look at?" name="auditNotes" rows={4} value={formData.auditNotes} onChange={handleChange} className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted" />
+                <Button type="submit" disabled={loading} className="w-full gradient-cyan text-accent-foreground font-semibold glow-cyan">
                   {loading ? "Submitting..." : "Request Free Audit"}
                 </Button>
               </form>
