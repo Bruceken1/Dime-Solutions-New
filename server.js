@@ -10,24 +10,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ── Static files FIRST — must be before CORS so assets are never blocked ──────
+const FROM = process.env.RESEND_FROM_EMAIL || 'Dime Solutions <onboarding@resend.dev>';
+const TO   = process.env.CONTACT_EMAIL     || 'support@dime-solutions.co.ke';
+
+// Static files first — before any middleware
 app.use(express.static(path.join(__dirname, 'dist')));
-
-// ── CORS — only affects API routes below ──────────────────────────────────────
-const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? ['https://dime-solutions.co.ke', 'https://www.dime-solutions.co.ke', 'https://dime-solutions-new-production.up.railway.app']
-  : ['http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:8080'];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error('CORS: origin not allowed'));
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-}));
-
 app.use(express.json({ limit: '16kb' }));
+app.use(cors());
 
 // ── Rate limiter ───────────────────────────────────────────────────────────────
 const rateMap = new Map();
@@ -58,13 +47,10 @@ function esc(val) {
     .replace(/\n/g, '<br>');
 }
 
-// ── Email helper ───────────────────────────────────────────────────────────────
-const FROM = process.env.RESEND_FROM_EMAIL || 'Dime Solutions <onboarding@resend.dev>';
-const TO   = process.env.CONTACT_EMAIL     || 'support@dime-solutions.co.ke';
-
-// ── POST /api/send-contact ────────────────────────────────────────────────────
+// ── POST /api/send-contact ─────────────────────────────────────────────────────
 app.post('/api/send-contact', rateLimit, async (req, res) => {
-  const { name, email, subject, message, phone } = req.body;
+  console.log('📨 New contact form submission');
+  const { name, email, phone, subject, message } = req.body;
 
   if (!name || !email || !subject || !message) {
     return res.status(400).json({ success: false, error: 'Missing required fields.' });
@@ -77,7 +63,7 @@ app.post('/api/send-contact', rateLimit, async (req, res) => {
       replyTo: email,
       subject: `New Contact: ${esc(subject)}`,
       html: `
-        <h2 style="color:#1a1a2e">New Contact Form Submission</h2>
+        <h2 style="color:#0b2342">New Contact Form Submission</h2>
         <table cellpadding="6" style="font-family:sans-serif;font-size:14px">
           <tr><td><strong>Name</strong></td><td>${esc(name)}</td></tr>
           <tr><td><strong>Email</strong></td><td>${esc(email)}</td></tr>
@@ -87,15 +73,17 @@ app.post('/api/send-contact', rateLimit, async (req, res) => {
         </table>
       `,
     });
+    console.log('✅ Contact email sent');
     res.json({ success: true });
   } catch (err) {
-    console.error('[send-contact]', err);
+    console.error('❌ Contact email error:', err);
     res.status(500).json({ success: false, error: 'Failed to send message. Please try again.' });
   }
 });
 
-// ── POST /api/send-audit ──────────────────────────────────────────────────────
+// ── POST /api/send-audit ───────────────────────────────────────────────────────
 app.post('/api/send-audit', rateLimit, async (req, res) => {
+  console.log('📨 New audit request');
   const { companyName, contactName, email, phone, industry, auditNotes } = req.body;
 
   if (!contactName || !email) {
@@ -109,7 +97,7 @@ app.post('/api/send-audit', rateLimit, async (req, res) => {
       replyTo: email,
       subject: `New Free Audit Request — ${esc(companyName || contactName)}`,
       html: `
-        <h2 style="color:#1a1a2e">New Free Audit Request</h2>
+        <h2 style="color:#0b2342">New Free Audit Request</h2>
         <table cellpadding="6" style="font-family:sans-serif;font-size:14px">
           <tr><td><strong>Company</strong></td><td>${esc(companyName) || 'N/A'}</td></tr>
           <tr><td><strong>Contact</strong></td><td>${esc(contactName)}</td></tr>
@@ -120,19 +108,53 @@ app.post('/api/send-audit', rateLimit, async (req, res) => {
         </table>
       `,
     });
+    console.log('✅ Audit email sent');
     res.json({ success: true });
   } catch (err) {
-    console.error('[send-audit]', err);
+    console.error('❌ Audit email error:', err);
     res.status(500).json({ success: false, error: 'Failed to submit request. Please try again.' });
   }
 });
 
-// ── Catch-all: serve React SPA for all non-API routes ─────────────────────────
+// ── POST /api/send-career ──────────────────────────────────────────────────────
+app.post('/api/send-career', rateLimit, async (req, res) => {
+  console.log('📨 New career application');
+  const { name, email, position, message } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ success: false, error: 'Name and email are required.' });
+  }
+
+  try {
+    await resend.emails.send({
+      from:    FROM,
+      to:      [TO],
+      replyTo: email,
+      subject: `New Career Application — ${esc(name)}${position ? ` (${esc(position)})` : ''}`,
+      html: `
+        <h2 style="color:#0b2342">New Career Application</h2>
+        <table cellpadding="6" style="font-family:sans-serif;font-size:14px">
+          <tr><td><strong>Name</strong></td><td>${esc(name)}</td></tr>
+          <tr><td><strong>Email</strong></td><td>${esc(email)}</td></tr>
+          <tr><td><strong>Position</strong></td><td>${esc(position) || 'Not specified'}</td></tr>
+          <tr><td valign="top"><strong>Message</strong></td><td>${esc(message) || 'N/A'}</td></tr>
+        </table>
+      `,
+    });
+    console.log('✅ Career email sent');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Career email error:', err);
+    res.status(500).json({ success: false, error: 'Failed to submit application. Please try again.' });
+  }
+});
+
+// ── Catch-all: serve React SPA ─────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✓ Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  console.log(`✅ Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
