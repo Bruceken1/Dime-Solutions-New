@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import SectionHeading from "@/components/SectionHeading";
 
 const positions = [
@@ -24,24 +23,18 @@ const Careers = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      const { error } = await supabase.from("career_applications").insert({
-        name: form.name,
-        email: form.email,
-        position: form.position || null,
-        message: form.message || null,
+      const res = await fetch("/api/send-career", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
       });
-      if (error) throw error;
-
-      await supabase.functions.invoke("notify-submission", {
-        body: { type: "career", data: form },
-      });
-
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || "Failed to submit application");
       toast({ title: "Application submitted!", description: "We'll review your application and get back to you soon." });
       setForm({ name: "", email: "", position: "", message: "" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to submit. Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -58,6 +51,7 @@ const Careers = () => {
           </motion.div>
         </div>
       </section>
+
       <section className="section-dark section-padding">
         <div className="container-wide max-w-4xl">
           <SectionHeading label="Open Positions" title="Current Opportunities" light />
@@ -75,6 +69,7 @@ const Careers = () => {
               </div>
             ))}
           </div>
+
           <SectionHeading label="Apply" title="Send Your Application" light />
           <form onSubmit={handleSubmit} className="space-y-4 max-w-xl mx-auto">
             <Input placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="bg-[hsl(var(--navy)/0.5)] border-[hsl(var(--navy-light)/0.3)] text-on-dark placeholder:text-on-dark-muted" />
